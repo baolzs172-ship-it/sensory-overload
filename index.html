@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensory Overload</title>
+    <script type="module" crossorigin src="/assets/index-ZRy3zaVx.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DriNvJZw.css">
+  </head>
+  <body>
+    <div id="songInfo">
+      <div id="songName">未选择歌曲</div>
+      <div id="timeDisplay">00:00 / 00:00</div>
+    </div>
+    <div id="container"></div>
+    <div id="audio-controls">
+      <div class="control-header">音频控制</div>
+      <input type="file" id="audioInput" accept="audio/*" multiple />
+      <div id="playlist">
+        <div class="playlist-header">播放列表</div>
+        <div id="playlistItems"></div>
+      </div>
+      <div class="audio-controls-bottom">
+        <button id="prevBtn" aria-label="上一首">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+          </svg>
+        </button>
+        <button id="playBtn" aria-label="播放">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <button id="nextBtn" aria-label="下一首">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+          </svg>
+        </button>
+        <input type="range" id="progressBar" min="0" max="100" value="0" step="0.1" />
+        <button id="autoNextBtn" class="auto-next-btn on" aria-label="自动切歌：开">🔁</button>
+        <div class="volume-control">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+          <input type="range" id="volumeSlider" min="0" max="100" value="100" />
+        </div>
+      </div>
+    </div>
+    <div id="mode-buttons">
+      <button class="mode-btn-v" data-mode="particles">粒子模式</button>
+      <button class="mode-btn-v" data-mode="wave">波形模式</button>
+      <button class="mode-btn-v active" data-mode="all">全部显示</button>
+    </div>
+    <div id="bg-color-picker">
+      <button class="bg-color-btn" data-color="#0a0a2e" style="background:#0a0a2e" aria-label="蓝色背景"></button>
+      <button class="bg-color-btn active" data-color="#000000" style="background:#000000" aria-label="黑色背景"></button>
+      <button class="bg-color-btn" data-color="#2e0a2e" style="background:#2e0a2e" aria-label="紫色背景"></button>
+      <button class="bg-color-btn transparent-mode" data-color="transparent" aria-label="透明模式">T</button>
+    </div>
+  </body>
+</html>
