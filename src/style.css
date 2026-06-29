@@ -1,0 +1,342 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #000000;
+}
+
+#container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+canvas {
+  display: block;
+}
+
+#audio-controls {
+  position: fixed;
+  bottom: 30px;
+  left: 20px;
+  padding: 16px;
+  z-index: 100;
+  width: 280px;
+}
+
+#mode-buttons {
+  position: fixed;
+  right: 20px;
+  bottom: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.mode-btn-v {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #ffffff;
+  background: rgba(10, 10, 46, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  min-width: 80px;
+}
+
+.mode-btn-v:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.mode-btn-v.active {
+  color: #00ffff;
+  border-color: #00ffff;
+}
+
+#audioInput {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  width: 100%;
+  margin-bottom: 12px;
+  background: transparent;
+  border: none;
+}
+
+#playlist {
+  width: 100%;
+  max-height: 150px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.playlist-header {
+  padding: 10px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#playlistItems {
+  max-height: calc(150px - 36px);
+  overflow-y: auto;
+}
+
+#playlistItems::-webkit-scrollbar {
+  width: 4px;
+}
+
+#playlistItems::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#playlistItems::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.playlist-item {
+  padding: 8px 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-item:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.playlist-item.active {
+  color: #00ffff;
+}
+
+#songInfo {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 100;
+}
+
+#songName {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#timeDisplay {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Courier New', monospace;
+}
+
+#audioInput::-webkit-file-upload-button {
+  padding: 6px 12px;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+#audioInput::-webkit-file-upload-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.audio-controls-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#prevBtn, #nextBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#prevBtn:hover, #nextBtn:hover {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+#playBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#playBtn:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+#progressBar {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+#progressBar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+#progressBar::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0;
+  cursor: pointer;
+  border: none;
+}
+
+#autoNextBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+#autoNextBtn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+#autoNextBtn.off {
+  color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+#volumeSlider {
+  width: 60px;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+#volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+#volumeSlider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0;
+  cursor: pointer;
+  border: none;
+}
+
+#bg-color-picker {
+  position: fixed;
+  right: 20px;
+  bottom: 248px;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  z-index: 100;
+}
+
+.bg-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  font-size: 12px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.bg-color-btn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.bg-color-btn.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+}
+
+.bg-color-btn.transparent-mode {
+  background: transparent !important;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+.bg-color-btn.transparent-mode.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+}
