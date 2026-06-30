@@ -14,6 +14,10 @@ let sphereMaterial = null
 let sphereGlow = null
 let sphereGlowGeometry = null
 let sphereGlowMaterial = null
+let rings = []
+let ringParticles = null
+let ringParticleGeometry = null
+let ringParticleMaterial = null
 let controls = null
 
 let audioContext = null
@@ -25,9 +29,9 @@ let dataArray = null
 let startTime = 0
 let pauseTime = 0
 let currentMode = 'all'
-let currentBgColor = '#000000'
 let autoNext = true
 let isDragging = false
+let isPlaying = false
 
 let playlist = []
 let currentTrackIndex = -1
@@ -41,8 +45,8 @@ async function init() {
   cleanup()
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color('#000000')
-  scene.fog = new THREE.Fog(0x000000, 10, 50)
+  scene.background = null
+  scene.fog = null
 
   camera = new THREE.PerspectiveCamera(
     75,
@@ -53,10 +57,10 @@ async function init() {
   camera.position.set(0, 3.5, 15)
   camera.lookAt(0, 0, 0)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.setClearColor(0x000000)
+  renderer.setClearColor(0x000000, 0)
   document.getElementById('container').appendChild(renderer.domElement)
 
   createParticles()
@@ -72,6 +76,7 @@ async function init() {
     controls.update()
     updateParticles()
     updateSphere()
+    updateSceneRotation()
     updateProgress()
     updateFPS()
     renderer.render(scene, camera)
@@ -94,14 +99,7 @@ async function init() {
     const positions = new Float32Array(particleCount * 3)
     const colors = new Float32Array(particleCount * 3)
     const originalPositions = new Float32Array(particleCount * 3)
-
-    const colorOptions = [
-      [1, 0, 0],
-      [0, 1, 0],
-      [0, 0, 1],
-      [1, 0, 1],
-      [0, 1, 1]
-    ]
+    const hueOffsets = new Float32Array(particleCount)
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3
@@ -118,16 +116,14 @@ async function init() {
       originalPositions[i3 + 1] = positions[i3 + 1]
       originalPositions[i3 + 2] = positions[i3 + 2]
 
-      const color = colorOptions[Math.floor(Math.random() * colorOptions.length)]
-      colors[i3] = color[0]
-      colors[i3 + 1] = color[1]
-      colors[i3 + 2] = color[2]
+      hueOffsets[i] = Math.random() * 360
     }
 
     particleGeometry = new THREE.BufferGeometry()
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     particleGeometry.userData.originalPositions = originalPositions
+    particleGeometry.userData.hueOffsets = hueOffsets
 
     particleMaterial = new THREE.PointsMaterial({
       size: 0.08,
@@ -157,13 +153,18 @@ async function init() {
     }
 
     const positions = particleGeometry.attributes.position.array
+    const colors = particleGeometry.attributes.color.array
     const originalPositions = particleGeometry.userData.originalPositions
+    const hueOffsets = particleGeometry.userData.hueOffsets
     const count = positions.length / 3
 
     const spreadFactor = lowFreqIntensity * 2
     const opacity = 0.3 + lowFreqIntensity * 0.7
 
     particleMaterial.opacity = opacity
+
+    const hueSpeed = 0.02
+    const baseHue = (performance.now() * hueSpeed) % 360
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
@@ -182,9 +183,16 @@ async function init() {
         positions[i3 + 1] = origY + dirY * spreadFactor
         positions[i3 + 2] = origZ + dirZ * spreadFactor
       }
+
+      const hue = (baseHue + hueOffsets[i]) % 360
+      const color = new THREE.Color().setHSL(hue / 360, 1, 0.5)
+      colors[i3] = color.r
+      colors[i3 + 1] = color.g
+      colors[i3 + 2] = color.b
     }
 
     particleGeometry.attributes.position.needsUpdate = true
+    particleGeometry.attributes.color.needsUpdate = true
     particles.rotation.y += 0.001
   }
 
@@ -192,9 +200,9 @@ async function init() {
     // 主体 — 实体 Phong 材质，半径 2.5，面数 64
     sphereGeometry = new THREE.SphereGeometry(2.5, 64, 64)
     sphereMaterial = new THREE.MeshPhongMaterial({
-      color: new THREE.Color('#00ffff'),
-      emissive: new THREE.Color('#001111'),
-      specular: new THREE.Color('#00ffff'),
+      color: new THREE.Color('#222222'),
+      emissive: new THREE.Color('#000000'),
+      specular: new THREE.Color('#444444'),
       shininess: 80,
       transparent: true,
       opacity: 0.9
@@ -212,7 +220,7 @@ async function init() {
     // 外发光球壳 — 半透明，比主体大 0.3
     sphereGlowGeometry = new THREE.SphereGeometry(2.8, 64, 64)
     sphereGlowMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color('#00ffff'),
+      color: new THREE.Color('#333333'),
       transparent: true,
       opacity: 0.1,
       side: THREE.BackSide,
@@ -223,17 +231,108 @@ async function init() {
     scene.add(sphereGlow)
 
     // === 添加环境光确保暗面可视 ===
-    const ambientLight = new THREE.AmbientLight(0x004444, 0.5)
+    const ambientLight = new THREE.AmbientLight(0x222222, 0.5)
     ambientLight.name = 'sphereAmbient'
     scene.add(ambientLight)
     sphere.userData.ambientLight = ambientLight
 
     // 添加一个点光源照亮实体球
-    const pointLight = new THREE.PointLight(0x00ffff, 2, 15)
+    const pointLight = new THREE.PointLight(0x444444, 2, 15)
     pointLight.position.set(0, 2, 0)
     scene.add(pointLight)
     // 存到 userData 以便后续清理
     sphere.userData.pointLight = pointLight
+
+    // === 创建5个半透明圆环 ===
+    const ringCount = 5
+    const minRadius = 2.8
+    const maxRadius = 4.5
+    const radiusStep = (maxRadius - minRadius) / (ringCount - 1)
+    
+    for (let i = 0; i < ringCount; i++) {
+      const radius = minRadius + i * radiusStep
+      const tubeRadius = 0.03
+      const geometry = new THREE.TorusGeometry(radius, tubeRadius, 8, 64)
+      
+      const t = i / (ringCount - 1)
+      const color = new THREE.Color().lerpColors(
+        new THREE.Color('#555555'),
+        new THREE.Color('#111111'),
+        t
+      )
+      const opacity = 0.15 + t * 0.25
+      
+      const material = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      })
+      
+      const ring = new THREE.Mesh(geometry, material)
+      ring.position.y = 2
+      
+      const angle1 = (i * Math.PI * 2) / ringCount
+      const angle2 = (i * Math.PI) / ringCount
+      ring.rotation.x = Math.sin(angle1) * 0.3 + Math.PI / 2
+      ring.rotation.z = Math.cos(angle2) * 0.5
+      
+      scene.add(ring)
+      rings.push(ring)
+    }
+
+    // === 创建环轨道上的微型粒子 ===
+    const ringParticleCount = 500
+    const ringParticlePositions = new Float32Array(ringParticleCount * 3)
+    const ringParticleColors = new Float32Array(ringParticleCount * 3)
+    const ringParticleRingIndices = new Float32Array(ringParticleCount)
+    const ringParticleOffsets = new Float32Array(ringParticleCount)
+    
+    for (let i = 0; i < ringParticleCount; i++) {
+      const ringIndex = i % ringCount
+      const ringRadius = minRadius + ringIndex * radiusStep
+      const offset = (i / ringParticleCount) * Math.PI * 2
+      
+      ringParticleRingIndices[i] = ringIndex
+      ringParticleOffsets[i] = offset
+      
+      const x = ringRadius * Math.cos(offset)
+      const y = 2
+      const z = ringRadius * Math.sin(offset)
+      
+      ringParticlePositions[i * 3] = x
+      ringParticlePositions[i * 3 + 1] = y
+      ringParticlePositions[i * 3 + 2] = z
+      
+      const t = ringIndex / (ringCount - 1)
+      const color = new THREE.Color().lerpColors(
+        new THREE.Color('#666666'),
+        new THREE.Color('#222222'),
+        t
+      )
+      ringParticleColors[i * 3] = color.r
+      ringParticleColors[i * 3 + 1] = color.g
+      ringParticleColors[i * 3 + 2] = color.b
+    }
+    
+    ringParticleGeometry = new THREE.BufferGeometry()
+    ringParticleGeometry.setAttribute('position', new THREE.BufferAttribute(ringParticlePositions, 3))
+    ringParticleGeometry.setAttribute('color', new THREE.BufferAttribute(ringParticleColors, 3))
+    ringParticleGeometry.userData.ringIndices = ringParticleRingIndices
+    ringParticleGeometry.userData.offsets = ringParticleOffsets
+    
+    ringParticleMaterial = new THREE.PointsMaterial({
+      size: 0.06,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+    
+    ringParticles = new THREE.Points(ringParticleGeometry, ringParticleMaterial)
+    scene.add(ringParticles)
   }
 
   function updateSphere() {
@@ -244,15 +343,22 @@ async function init() {
 
     // === 整体低频脉冲强度 ===
     let lowPulse = 0
+    let midPulse = 0
     let highRipple = 0
     if (frequencies.length === 0) {
       // 无频谱时缓慢呼吸
       lowPulse = 0.3 + 0.1 * Math.sin(performance.now() * 0.002)
+      midPulse = 0.2 + 0.1 * Math.sin(performance.now() * 0.003)
       highRipple = 0.1
     } else {
       const lowCount = Math.floor(frequencies.length * 0.15)
       for (let i = 0; i < lowCount; i++) lowPulse += frequencies[i]
       lowPulse /= lowCount
+
+      const midStart = Math.floor(frequencies.length * 0.2)
+      const midEnd = Math.floor(frequencies.length * 0.6)
+      for (let i = midStart; i < midEnd; i++) midPulse += frequencies[i]
+      midPulse /= (midEnd - midStart)
 
       const highStart = Math.floor(frequencies.length * 0.4)
       for (let i = highStart; i < frequencies.length; i++) highRipple += frequencies[i]
@@ -287,17 +393,65 @@ async function init() {
     }
     sphereGeometry.attributes.position.needsUpdate = true
 
-    // === 自发光随低频脉冲 ===
-    const emissiveIntensity = 0.05 + Math.min(lowPulse, 1.0) * 0.35
+    // === 自发光随低频鼓点闪烁 ===
+    const emissiveBase = 0.05
+    const emissivePulse = lowPulse * 0.6 + midPulse * 0.3
+    const emissiveIntensity = Math.min(emissiveBase + emissivePulse, 0.5)
     sphereMaterial.emissive.set(new THREE.Color(
-      Math.min(emissiveIntensity * 0.1, 0.7),
-      Math.min(emissiveIntensity * 0.7, 0.7),
-      Math.min(emissiveIntensity, 0.7)
+      emissiveIntensity,
+      emissiveIntensity,
+      emissiveIntensity
     ))
 
-    // === 光晕壳随低频膨胀收缩 + 透明度波动 ===
-    sphereGlow.scale.setScalar(basePulse)
-    sphereGlowMaterial.opacity = 0.05 + lowPulse * 0.2
+    // === 光晕壳随低频膨胀收缩 + 透明度闪烁 ===
+    const glowPulse = basePulse + midPulse * 0.2
+    sphereGlow.scale.setScalar(glowPulse)
+    sphereGlowMaterial.opacity = 0.03 + lowPulse * 0.35 + midPulse * 0.15
+
+    // === 圆环动画：跟随中频波动 ===
+    rings.forEach((ring, i) => {
+      const ringBaseScale = 1 + lowPulse * 0.15
+      const ringMidPulse = 1 + midPulse * 0.1
+      const ringScale = ringBaseScale * ringMidPulse
+      ring.scale.setScalar(ringScale)
+      
+      const baseOpacity = ring.material.opacity * 0.5
+      const pulseOpacity = (lowPulse * 0.3 + midPulse * 0.2) * (1 - i / rings.length)
+      ring.material.opacity = baseOpacity + pulseOpacity
+      
+      ring.rotation.y += 0.002 + midPulse * 0.003
+    })
+
+    // === 环轨道粒子流动 ===
+    if (ringParticles && ringParticleGeometry) {
+      const particlePositions = ringParticleGeometry.attributes.position.array
+      const ringIndices = ringParticleGeometry.userData.ringIndices
+      const offsets = ringParticleGeometry.userData.offsets
+      const minRadius = 2.8
+      const maxRadius = 4.5
+      const radiusStep = (maxRadius - minRadius) / (rings.length - 1)
+      
+      const flowSpeed = 0.02 + midPulse * 0.03
+      
+      for (let i = 0; i < particlePositions.length / 3; i++) {
+        const ringIndex = Math.floor(ringIndices[i])
+        const ringRadius = minRadius + ringIndex * radiusStep
+        const baseOffset = offsets[i]
+        const timeOffset = performance.now() * flowSpeed * 0.001
+        
+        const angle = baseOffset + timeOffset + i * 0.001
+        const x = ringRadius * Math.cos(angle)
+        const y = 2 + Math.sin(angle * 2 + t * 3) * 0.1 * lowPulse
+        const z = ringRadius * Math.sin(angle)
+        
+        particlePositions[i * 3] = x
+        particlePositions[i * 3 + 1] = y
+        particlePositions[i * 3 + 2] = z
+      }
+      
+      ringParticleGeometry.attributes.position.needsUpdate = true
+      ringParticleMaterial.opacity = 0.4 + lowPulse * 0.4
+    }
 
     // === 旋转 ===
     sphere.rotation.y += 0.003
@@ -333,6 +487,13 @@ async function init() {
         fpsDiv.style.color = fps >= 50 ? '#00ffff' : fps >= 30 ? '#ffff00' : '#ff0000'
       }
     }
+  }
+
+  function updateSceneRotation() {
+    const baseSpeed = 0.0003
+    const playingSpeed = 0.0015
+    const speed = isPlaying ? playingSpeed : baseSpeed
+    scene.rotation.y += speed
   }
 
   function onWindowResize() {
@@ -381,23 +542,17 @@ function initAudio() {
   prevBtn.addEventListener('click', playPrev)
   nextBtn.addEventListener('click', playNext)
 
-  // 进度条拖拽 — 用独立的 flag 防 updateProgress 回写 & 鼠标在外面松开也触发
-  let draggingProgress = false
-  progressBar.addEventListener('input', (e) => {
+  progressBar.addEventListener('pointerdown', (e) => {
     isDragging = true
+    e.target.setPointerCapture(e.pointerId)
+})
+progressBar.addEventListener('input', (e) => {
     updateTimeDisplay(e)
-  })
-  progressBar.addEventListener('pointerdown', () => {
-    isDragging = true
-    draggingProgress = true
-  })
-  document.addEventListener('pointerup', () => {
-    if (draggingProgress) {
-      draggingProgress = false
-      isDragging = false
-      seekTo()
-    }
-  })
+})
+progressBar.addEventListener('pointerup', () => {
+    isDragging = false
+    seekTo()
+})
   volumeSlider.addEventListener('input', setVolume)
 
   const modeBtns = document.querySelectorAll('.mode-btn-v')
@@ -408,16 +563,32 @@ function initAudio() {
     })
   })
 
-  const bgColorBtns = document.querySelectorAll('.bg-color-btn')
-  bgColorBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const color = e.target.dataset.color
-      switchBgColor(color)
-    })
-  })
-
   const autoNextBtn = document.getElementById('autoNextBtn')
   autoNextBtn.addEventListener('click', toggleAutoNext)
+
+  const panelToggleBtn = document.getElementById('panelToggleBtn')
+  panelToggleBtn.addEventListener('click', togglePanel)
+}
+
+function togglePanel() {
+  const leftPanel = document.getElementById('left-panel')
+  const rightPanel = document.getElementById('right-panel')
+  const toggleBtn = document.getElementById('panelToggleBtn')
+  
+  const leftStyle = window.getComputedStyle(leftPanel)
+  const isVisible = leftStyle.display !== 'none'
+  
+  if (isVisible) {
+    leftPanel.style.display = 'none'
+    rightPanel.style.display = 'none'
+    toggleBtn.classList.remove('active')
+    toggleBtn.setAttribute('aria-label', '显示面板')
+  } else {
+    leftPanel.style.display = 'flex'
+    rightPanel.style.display = 'flex'
+    toggleBtn.classList.add('active')
+    toggleBtn.setAttribute('aria-label', '隐藏面板')
+  }
 }
 
 async function handleFileUpload(event) {
@@ -468,7 +639,7 @@ function renderPlaylist() {
   })
 }
 
-function playTrack(index) {
+async function playTrack(index) {
   if (index < 0 || index >= playlist.length) return
 
   stop()
@@ -482,7 +653,7 @@ function playTrack(index) {
   document.getElementById('progressBar').value = 0
 
   renderPlaylist()
-  play()
+  await play()
 }
 
 function playPrev() {
@@ -503,22 +674,22 @@ function playNext() {
   playTrack(newIndex)
 }
 
-function togglePlay() {
+async function togglePlay() {
   if (source) {
     pause()
   } else {
-    play()
+    await play()
   }
 }
 
-function play() {
+async function play() {
   if (!audioBuffer) {
     console.warn('No audio file loaded')
     return
   }
 
   if (audioContext.state === 'suspended') {
-    audioContext.resume()
+    await audioContext.resume()
   }
 
   source = audioContext.createBufferSource()
@@ -529,6 +700,7 @@ function play() {
   startTime = audioContext.currentTime - offset
   source.start(0, offset)
 
+  isPlaying = true
   updatePlayButton('pause')
 
   source.onended = onTrackEnd
@@ -538,20 +710,24 @@ function pause() {
   if (!source) return
 
   pauseTime = audioContext.currentTime - startTime
+  source.onended = null
   source.stop()
   source.disconnect()
   source = null
 
+  isPlaying = false
   updatePlayButton('play')
 }
 
 function stop() {
   if (source) {
+    source.onended = null
     source.stop()
     source.disconnect()
     source = null
   }
 
+  isPlaying = false
   startTime = 0
   pauseTime = 0
 
@@ -560,9 +736,9 @@ function stop() {
   document.getElementById('timeDisplay').textContent = '00:00 / 00:00'
 }
 
-function onTrackEnd() {
+async function onTrackEnd() {
   if (autoNext && currentTrackIndex < playlist.length - 1) {
-    playTrack(currentTrackIndex + 1)
+    await playTrack(currentTrackIndex + 1)
   } else {
     stop()
   }
@@ -612,14 +788,19 @@ function updateTimeDisplay(event) {
   timeDisplay.textContent = `${formatTime(newTime)} / ${formatTime(duration)}`
 }
 
-function seekTo() {
+async function seekTo() {
   if (!audioBuffer) return
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume()
+  }
 
   const progressBar = document.getElementById('progressBar')
   const duration = audioBuffer.duration
   const newTime = (progressBar.value / 100) * duration
 
   if (source) {
+    source.onended = null
     source.stop()
     source.disconnect()
   }
@@ -666,30 +847,13 @@ function switchMode(mode) {
   if (sphereGlow) {
     sphereGlow.visible = showWave
   }
-}
 
-function switchBgColor(color) {
-  currentBgColor = color
-
-  document.querySelectorAll('.bg-color-btn').forEach(btn => {
-    btn.classList.remove('active')
+  rings.forEach(ring => {
+    ring.visible = showWave
   })
-  document.querySelector(`[data-color="${color}"]`).classList.add('active')
 
-  if (color === 'transparent') {
-    scene.background = new THREE.Color('#000000')
-    renderer.setClearColor(0x000000)
-
-    if (particleMaterial) particleMaterial.opacity = 0.3
-    if (sphereMaterial) sphereMaterial.opacity = 0.3
-    if (sphereGlowMaterial) sphereGlowMaterial.opacity = 0.05
-  } else {
-    scene.background = new THREE.Color(color)
-    renderer.setClearColor(new THREE.Color(color))
-
-    if (particleMaterial) particleMaterial.opacity = 0.8
-    if (sphereMaterial) sphereMaterial.opacity = 0.85
-    if (sphereGlowMaterial) sphereGlowMaterial.opacity = 0.1
+  if (ringParticles) {
+    ringParticles.visible = showWave
   }
 }
 
@@ -751,6 +915,19 @@ function cleanup() {
   if (sphereGlowMaterial) {
     sphereGlowMaterial.dispose()
     sphereGlowMaterial = null
+  }
+  rings.forEach(ring => {
+    ring.geometry.dispose()
+    ring.material.dispose()
+  })
+  rings = []
+  if (ringParticleGeometry) {
+    ringParticleGeometry.dispose()
+    ringParticleGeometry = null
+  }
+  if (ringParticleMaterial) {
+    ringParticleMaterial.dispose()
+    ringParticleMaterial = null
   }
   if (sphere && sphere.userData.pointLight) {
     sphere.userData.pointLight.dispose()
